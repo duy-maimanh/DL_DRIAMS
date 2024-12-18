@@ -4,8 +4,8 @@ import os
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 CLEAN_CSV = 'all_clean.csv'
-tqdm.pandas(desc='Merging data...!')
-processed_location = "./processed_dataset"
+tqdm.pandas(desc='Extract species data...!')
+processed_location = "./processed_data"
 
 def load_spectra(args, row):
     download_location = args.target_dataset
@@ -15,6 +15,10 @@ def load_spectra(args, row):
 def merge_dataset(args):
     download_location = args.target_dataset
     print("Loading data...!")
+    all_clean_csv_path = f"{processed_location}/{CLEAN_CSV}"
+    if os.path.isfile(all_clean_csv_path) == True:
+        print("Found merged data")
+        return True
     print("Merging dataset...")
     master_df = pd.DataFrame()
 
@@ -35,32 +39,38 @@ def merge_dataset(args):
                 master_df = pd.concat([master_df, df], ignore_index=True, sort=False)
     
     # Sort columns based on missing values
-    master_df = master_df[df.isna().sum().sort_values().keys()]
-    all_clean_csv_path = f"{processed_location}/{CLEAN_CSV}"
+    master_df = master_df[master_df.isna().sum().sort_values().keys()]
     master_df.to_csv(all_clean_csv_path, index=False)
     print("Finish merging...!")
     return True
 
 def get_dataset(args):
-    # merge_dataset(args)
+    species = args.species
+    merge_dataset(args)
     all_clean_csv_path = f"{processed_location}/{CLEAN_CSV}"
     print(all_clean_csv_path)
-    df = pd.read_csv(all_clean_csv_path, dtype='string', na_values=['-'])
-    df=df[df.isna().sum().sort_values().keys()]
-    species = args.species
-    # Drop columns with all NaN values
-    pa_df = df.dropna(axis=1, how='all')
 
-    # Replace 'I' with 'R' in the antimicrobial column
-    # print("sadhjsdahdsh",species)
-    pa_df.loc[:, species] = pa_df[species].replace('I', 'R')
-    # Filter rows where the antimicrobial column has 'S' (Susceptible) or 'R' (Resistant)
-    pa_df = pa_df[(pa_df[species] == 'S') | (pa_df[species] == 'R')]
-
-    # Select relevant columns for training
-    pa_df = pa_df[['code', 'species', species, 'year', 'institute']]
-
-    pa_df['bins'] = pa_df.progress_apply(lambda x: load_spectra(args, x), axis=1)
+    pickle_data = f"{processed_location}/{args.species}.pkl"
+    if os.path.isfile(pickle_data) == True:
+        print("Found species data")
+        pa_df = pd.read_pickle(pickle_data)
+    else:
+        df = pd.read_csv(all_clean_csv_path, dtype='string', na_values=['-'])
+        df=df[df.isna().sum().sort_values().keys()]
+        # Drop columns with all NaN values
+        pa_df = df.dropna(axis=1, how='all')
+    
+        # Replace 'I' with 'R' in the antimicrobial column
+        # print("sadhjsdahdsh",species)
+        pa_df.loc[:, species] = pa_df[species].replace('I', 'R')
+        # Filter rows where the antimicrobial column has 'S' (Susceptible) or 'R' (Resistant)
+        pa_df = pa_df[(pa_df[species] == 'S') | (pa_df[species] == 'R')]
+    
+        # Select relevant columns for training
+        pa_df = pa_df[['code', 'species', species, 'year', 'institute']]
+    
+        pa_df['bins'] = pa_df.progress_apply(lambda x: load_spectra(args, x), axis=1)
+        pa_df.to_pickle(pickle_data)
 
     inputs = np.vstack(pa_df['bins'].to_numpy())
     targets = pa_df[species].apply(lambda x: x == 'R').to_numpy()
