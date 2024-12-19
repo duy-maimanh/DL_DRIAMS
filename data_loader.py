@@ -4,7 +4,7 @@ import os
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 CLEAN_CSV = 'all_clean.csv'
-tqdm.pandas(desc='Extract species data...!')
+tqdm.pandas(desc='Extract medicine data...!')
 processed_location = "./processed_data"
 
 def load_spectra(args, row):
@@ -45,14 +45,14 @@ def merge_dataset(args):
     return True
 
 def get_dataset(args):
-    species = args.species
+    medicine = args.medicine
     merge_dataset(args)
     all_clean_csv_path = f"{processed_location}/{CLEAN_CSV}"
     print(all_clean_csv_path)
 
-    pickle_data = f"{processed_location}/{args.species}.pkl"
+    pickle_data = f"{processed_location}/{args.medicine}.pkl"
     if os.path.isfile(pickle_data) == True:
-        print("Found species data")
+        print("Found medicine data")
         pa_df = pd.read_pickle(pickle_data)
     else:
         df = pd.read_csv(all_clean_csv_path, dtype='string', na_values=['-'])
@@ -61,19 +61,18 @@ def get_dataset(args):
         pa_df = df.dropna(axis=1, how='all')
     
         # Replace 'I' with 'R' in the antimicrobial column
-        # print("sadhjsdahdsh",species)
-        pa_df.loc[:, species] = pa_df[species].replace('I', 'R')
+        pa_df.loc[:, medicine] = pa_df[medicine].replace('I', 'R')
         # Filter rows where the antimicrobial column has 'S' (Susceptible) or 'R' (Resistant)
-        pa_df = pa_df[(pa_df[species] == 'S') | (pa_df[species] == 'R')]
+        pa_df = pa_df[(pa_df[medicine] == 'S') | (pa_df[medicine] == 'R')]
     
         # Select relevant columns for training
-        pa_df = pa_df[['code', 'species', species, 'year', 'institute']]
+        pa_df = pa_df[['code', 'species', medicine, 'year', 'institute']]
     
         pa_df['bins'] = pa_df.progress_apply(lambda x: load_spectra(args, x), axis=1)
         pa_df.to_pickle(pickle_data)
 
     inputs = np.vstack(pa_df['bins'].to_numpy())
-    targets = pa_df[species].apply(lambda x: x == 'R').to_numpy()
+    targets = pa_df[medicine].apply(lambda x: x == 'R').to_numpy()
 
     print("Input shape:", inputs.shape)
     print("Target shape:", targets.shape)
