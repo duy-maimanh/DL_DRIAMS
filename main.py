@@ -63,7 +63,7 @@ def evaluation(args, weight_path, X_test, y_test):
     print("Finish")
 
 def draw_roc(args, name, model, X_test, y_test):
-    antimicrobial_name = args.species
+    antimicrobial_name = args.medicine
     y_pred = model.predict(X_test)
     fpr, tpr, thresholds = roc_curve(y_test, y_pred)
     roc_auc = auc(fpr, tpr)
@@ -134,7 +134,7 @@ def create_model(args, input_shape, optimizer):
 
 def main():
     parser = argparse.ArgumentParser(description='Classification...')
-    parser.add_argument("--species", type=str, default='Amoxicillin-Clavulanic acid',help="Species you want to classify")
+    parser.add_argument("--medicine", type=str, default='Amoxicillin-Clavulanic acid',help="medicine you want to classify")
     parser.add_argument("--target_dataset", type=str, default="./data", help="Folder where data located")
     parser.add_argument("--model", type=str, default="cnn", help="Deeplearning model architecture")
     parser.add_argument("--lr", type=int, default=0.0001, help="Learning rate")
